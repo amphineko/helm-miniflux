@@ -1,0 +1,11 @@
+apiVersion: v2
+name: miniflux
+description: A Helm chart for Kubernetes to deploy Miniflux, a minimalist and opinionated feed reader.
+
+type: application
+
+# chart version
+version: "1.0.0"
+
+# upstream Miniflux image version
+appVersion: "2.2.12"

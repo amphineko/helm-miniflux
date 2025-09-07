@@ -1,0 +1,170 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: miniflux
+  labels: 
+    {{- include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: miniflux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: miniflux
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels: 
+        {{- include "miniflux.labels" . | nindent 8 }}
+        app.kubernetes.io/component: miniflux
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.34.1
+          imagePullPolicy: IfNotPresent
+          command: ['sh', '-c', 'until nc -z -v -w30 postgres 5432; do echo "Waiting for database connection..."; sleep 5; done;']
+      containers:
+        - name: miniflux
+          image: "{{ .Values.miniflux.image.repository }}:{{ .Values.miniflux.image.tag }}"
+          imagePullPolicy: "{{ .Values.miniflux.image.pullPolicy }}"
+          env:
+            - name: DATABASE_URL
+              value: "postgres://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@postgres:5432/{{ .Values.postgres.database }}?sslmode=disable"
+            {{- if .Values.miniflux.config.admin_password }}
+            - name: ADMIN_PASSWORD
+              value: "{{ .Values.miniflux.config.admin_password }}"
+            {{- end }}
+            {{- if .Values.miniflux.config.admin_username }}
+            - name: ADMIN_USERNAME
+              value: "{{ .Values.miniflux.config.admin_username }}"
+            {{- end }}
+            {{- if .Values.miniflux.config.base_url }}
+            - name: BASE_URL
+              value: "{{ .Values.miniflux.config.base_url }}"
+            {{- end }}
+            - name: CREATE_ADMIN
+              value: "{{ .Values.miniflux.config.create_admin }}"
+            - name: RUN_MIGRATIONS
+              value: "{{ .Values.miniflux.config.run_migrations }}"
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              memory: "{{ .Values.miniflux.resources.limits.memory }}"
+              cpu: "{{ .Values.miniflux.resources.limits.cpu }}"
+            requests:
+              memory: "{{ .Values.miniflux.resources.requests.memory }}"
+              cpu: "{{ .Values.miniflux.resources.requests.cpu }}"
+          # livenessProbe:
+          #   httpGet:
+          #     path: /healthz
+          #     port: http
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 15
+          # readinessProbe:
+          #   httpGet:
+          #     path: /readyz
+          #     port: http
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 15
+        {{- if .Values.miniflux.anubis.enabled }}
+        - name: anubis
+          image: "{{ .Values.miniflux.anubis.image.repository }}:{{ .Values.miniflux.anubis.image.tag }}"
+          imagePullPolicy: "{{ .Values.miniflux.anubis.image.pullPolicy }}"
+          env:
+            - name: BIND
+              value: ":8923"
+            - name: DIFFICULTY
+              value: "{{ .Values.miniflux.anubis.config.difficulty }}"
+            - name: TARGET
+              value: "http://localhost:8080"
+            {{- if .Values.miniflux.anubis.config.ed25519_private_key_hex }}
+            - name: ED25519_PRIVATE_KEY_HEX
+              value: "{{ .Values.miniflux.anubis.config.ed25519_private_key_hex }}"
+            {{- end }}
+            {{- if .Values.miniflux.anubis.config.webmaster_email }}
+            - name: WEBMASTER_EMAIL
+              value: "{{ .Values.miniflux.anubis.config.webmaster_email }}"
+            {{- end }}
+          ports:
+            - containerPort: 8923
+              name: anubis
+              protocol: TCP
+          resources:
+            limits:
+              memory: "{{ .Values.miniflux.anubis.resources.limits.memory }}"
+              cpu: "{{ .Values.miniflux.anubis.resources.limits.cpu }}"
+            requests:
+              memory: "{{ .Values.miniflux.anubis.resources.requests.memory }}"
+              cpu: "{{ .Values.miniflux.anubis.resources.requests.cpu }}"
+        {{- end }}
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: miniflux
+  labels:
+    {{- include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: miniflux
+spec:
+  type: {{ .Values.miniflux.service.type }}
+  ports:
+    - port: {{ .Values.miniflux.service.port }}
+      {{- if .Values.miniflux.anubis.enabled }}
+      targetPort: anubis
+      {{- else }}
+      targetPort: http
+      {{- end }}
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/component: "miniflux"
+    app.kubernetes.io/name: "{{ template "miniflux.name" . }}"
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+
+---
+{{- if .Values.miniflux.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: miniflux
+  labels:
+    {{- include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: miniflux
+  {{- with .Values.miniflux.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.miniflux.ingress.className }}
+  ingressClassName: "{{ .Values.miniflux.ingress.className }}"
+  {{- end }}
+  rules:
+    {{- range .Values.miniflux.ingress.hosts }}
+    - host: {{ .host }}
+      http:
+          paths:
+            - path: /
+              pathType: Prefix
+              backend:
+                service:
+                  name: miniflux
+                  port:
+                    name: http
+    {{- end }}
+  {{- if .Values.miniflux.ingress.tls }}
+  tls:
+    {{- range .Values.miniflux.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,82 @@
+miniflux:
+  image:
+    repository: docker.io/miniflux/miniflux
+    tag: "2.2.12"
+    pullPolicy: "IfNotPresent"
+
+  resources:
+    requests:
+      memory: "0"
+      cpu: "0"
+    limits:
+      memory: "1024Mi"
+      cpu: "1000m"
+
+  service:
+    type: "ClusterIP"
+    port: 8080
+
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      # - host: "miniflux.example.com"
+    tls:
+      # - secretName: ""
+      #   hosts:
+      #     - "miniflux.example.com"
+
+  anubis:
+    enabled: false
+    image:
+      repository: ghcr.io/techarohq/anubis
+      tag: "v1.21.3"
+      pullPolicy: "IfNotPresent"
+    resources:
+      requests:
+        memory: "0"
+        cpu: "0"
+      limits:
+        memory: "256Mi"
+        cpu: "250m"
+    config:
+      difficulty: 3
+      ed25519_private_key_hex: ""
+      webmaster_email: ""
+
+  config:
+    admin_password: null
+    admin_username: null
+    base_url: ""
+    create_admin: false
+    run_migrations: true
+
+postgres:
+  image:
+    repository: docker.io/library/postgres
+    tag: "17-alpine"
+    pullPolicy: "IfNotPresent"
+
+  strategy: "Recreate"
+
+  resources:
+    requests:
+      memory: "0"
+      cpu: "0"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  persistence:
+    enabled: false
+    claimName: ""
+    size: "10Gi"
+    storageClass: ""
+
+  database: "miniflux"
+  password: "miniflux"
+  user: "miniflux"
+
+global:
+  appName: miniflux
