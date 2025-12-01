@@ -79,6 +79,8 @@ spec:
               value: ":8923"
             - name: DIFFICULTY
               value: "{{ .Values.miniflux.anubis.config.difficulty }}"
+            - name: POLICY_FNAME
+              value: "/etc/anubis/policy.yaml"
             - name: TARGET
               value: "http://localhost:8080"
             {{- if .Values.miniflux.anubis.config.ed25519_private_key_hex }}
@@ -100,8 +102,18 @@ spec:
             requests:
               memory: "{{ .Values.miniflux.anubis.resources.requests.memory }}"
               cpu: "{{ .Values.miniflux.anubis.resources.requests.cpu }}"
+          volumeMounts:
+            - name: anubis-policy
+              mountPath: /etc/anubis/policy.yaml
+              subPath: policy.yaml
         {{- end }}
       restartPolicy: Always
+      volumes:
+        {{- if .Values.miniflux.anubis.enabled }}
+        - name: anubis-policy
+          configMap:
+            name: miniflux-anubis-policy
+        {{- end }}
 
 ---
 apiVersion: v1
