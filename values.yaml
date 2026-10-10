@@ -78,5 +78,25 @@ postgres:
   password: "miniflux"
   user: "miniflux"
 
+weweRss:
+  enabled: false
+
+  authCode: ""
+
+  app:
+    image:
+      repository: docker.io/cooderl/wewe-rss
+      tag: "v2.6.1"
+      pullPolicy: "IfNotPresent"
+
+  mariadbOperator:
+    persistence:
+      size: "10Gi"
+      storageClass: ""
+
+  service:
+    type: "ClusterIP"
+    port: 4000
+
 global:
   appName: miniflux

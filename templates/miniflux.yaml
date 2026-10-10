@@ -10,6 +10,7 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      {{- include "miniflux.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: miniflux
   strategy:
     type: Recreate
@@ -19,15 +20,37 @@ spec:
         {{- include "miniflux.labels" . | nindent 8 }}
         app.kubernetes.io/component: miniflux
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: wait-for-postgres
           image: busybox:1.34.1
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           command: ['sh', '-c', 'until nc -z -v -w30 postgres 5432; do echo "Waiting for database connection..."; sleep 5; done;']
       containers:
         - name: miniflux
           image: "{{ .Values.miniflux.image.repository }}:{{ .Values.miniflux.image.tag }}"
           imagePullPolicy: "{{ .Values.miniflux.image.pullPolicy }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             - name: DATABASE_URL
               value: "postgres://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@postgres:5432/{{ .Values.postgres.database }}?sslmode=disable"
@@ -74,6 +97,14 @@ spec:
         - name: anubis
           image: "{{ .Values.miniflux.anubis.image.repository }}:{{ .Values.miniflux.anubis.image.tag }}"
           imagePullPolicy: "{{ .Values.miniflux.anubis.image.pullPolicy }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             - name: BIND
               value: ":8923"

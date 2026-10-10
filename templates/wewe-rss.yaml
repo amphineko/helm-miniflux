@@ -1,0 +1,143 @@
+{{- if .Values.weweRss.enabled }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wewe-rss
+  labels:
+    {{ include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wewe-rss
+spec:
+  replicas: 1
+  strategy:
+    type: "Recreate"
+  selector:
+    matchLabels:
+      {{ include "miniflux.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: wewe-rss
+  template:
+    metadata:
+      labels:
+        {{ include "miniflux.labels" . | nindent 8 }}
+        app.kubernetes.io/component: wewe-rss
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: "{{ .Values.weweRss.app.image.repository }}:{{ .Values.weweRss.app.image.tag }}"
+          imagePullPolicy: "{{ .Values.weweRss.app.image.pullPolicy }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
+          env:
+            - name: DATABASE_URL
+              value: "mysql://wewe-rss:wewe-rss@mariadb-wewerss:3306/wewe-rss?schema=public&connect_timeout=30&pool_timeout=30&socket_timeout=30"
+            {{- if .Values.weweRss.authCode }}
+            - name: AUTH_CODE
+              value: "{{ .Values.weweRss.authCode }}"
+            {{- end }}
+          ports:
+            - containerPort: 4000
+              name: http
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wewe-rss
+  labels:
+    {{ include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wewe-rss
+spec:
+  type: "{{ .Values.weweRss.service.type }}"
+  ports:
+    - port: 4000
+      targetPort: 4000
+      protocol: TCP
+      name: http
+  selector:
+    {{ include "miniflux.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: wewe-rss
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mariadb-wewerss
+  labels:
+    {{ include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mariadb
+stringData:
+  password: "wewe-rss"
+
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: MariaDB
+metadata:
+  name: mariadb-wewerss
+  labels:
+    {{ include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mariadb
+spec:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    privileged: false
+    runAsNonRoot: true
+    runAsUser: 999
+  database: "wewe-rss"
+  image: "docker.io/library/mariadb:11-ubi"
+  port: 3306
+  replicas: 1
+  resources:
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+    requests:
+      memory: "0"
+      cpu: "0"
+  storage:
+    size: "{{ .Values.weweRss.mariadbOperator.persistence.size }}"
+    storageClassName: "{{ .Values.weweRss.mariadbOperator.persistence.storageClass }}"
+  username: "wewe-rss"
+  passwordSecretKeyRef:
+    name: mariadb-wewerss
+    key: password
+
+---
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Connection
+metadata:
+  name: mariadb-wewerss
+  labels:
+    {{ include "miniflux.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mariadb
+spec:
+  mariaDbRef:
+    name: mariadb-wewerss
+  database: "wewe-rss"
+  username: "wewe-rss"
+  passwordSecretKeyRef:
+    name: mariadb-wewerss
+    key: password
+
+{{- end }}
