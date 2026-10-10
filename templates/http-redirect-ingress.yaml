@@ -1,0 +1,27 @@
+{{- if and .Values.miniflux.ingress.enabled .Values.miniflux.ingress.httpRedirect.enabled (eq .Values.miniflux.ingress.className "traefik") }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: miniflux-http-redirect
+  labels:
+    {{- include "miniflux.labels" . | nindent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: {{ printf "%s-%s@kubernetescrd" .Release.Namespace .Values.miniflux.ingress.httpRedirect.middlewareName | quote }}
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+spec:
+  ingressClassName: traefik
+  rules:
+    {{- range .Values.miniflux.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: miniflux
+                port:
+                  name: http
+    {{- end }}
+{{- end }}

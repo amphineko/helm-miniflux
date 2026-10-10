@@ -26,6 +26,20 @@ miniflux:
       # - secretName: ""
       #   hosts:
       #     - "miniflux.example.com"
+    useDefaultTLSStore: false
+    cors:
+      enabled: false
+      middlewareName: cors
+      allowOrigins: []
+      allowMethods: []
+      allowHeaders: []
+      allowCredentials: false
+      maxAge: 0
+      addVaryHeader: true
+    httpRedirect:
+      enabled: false
+      middlewareName: https-redirect
+      permanent: true
 
   anubis:
     enabled: false

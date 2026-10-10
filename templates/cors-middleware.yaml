@@ -1,0 +1,19 @@
+{{- if and .Values.miniflux.ingress.enabled .Values.miniflux.ingress.cors.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ required "CORS middlewareName is required" .Values.miniflux.ingress.cors.middlewareName | quote }}
+  labels:
+    {{- include "miniflux.labels" . | nindent 4 }}
+spec:
+  headers:
+    accessControlAllowOriginList:
+      {{- toYaml .Values.miniflux.ingress.cors.allowOrigins | nindent 6 }}
+    accessControlAllowMethods:
+      {{- toYaml .Values.miniflux.ingress.cors.allowMethods | nindent 6 }}
+    accessControlAllowHeaders:
+      {{- toYaml .Values.miniflux.ingress.cors.allowHeaders | nindent 6 }}
+    accessControlAllowCredentials: {{ .Values.miniflux.ingress.cors.allowCredentials }}
+    accessControlMaxAge: {{ int .Values.miniflux.ingress.cors.maxAge }}
+    addVaryHeader: {{ .Values.miniflux.ingress.cors.addVaryHeader }}
+{{- end }}

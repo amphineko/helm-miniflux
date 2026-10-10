@@ -200,6 +200,7 @@ spec:
                   port:
                     name: http
     {{- end }}
+  {{- if not (and (eq .Values.miniflux.ingress.className "traefik") .Values.miniflux.ingress.useDefaultTLSStore) }}
   {{- if .Values.miniflux.ingress.tls }}
   tls:
     {{- range .Values.miniflux.ingress.tls }}
@@ -209,5 +210,6 @@ spec:
         {{- end }}
       secretName: {{ .secretName }}
     {{- end }}
+  {{- end }}
   {{- end }}
 {{- end }}
