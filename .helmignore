@@ -23,3 +23,8 @@
 .vscode/
 # Local Helm values file
 values.local.yaml
+
+# Helmfile and encrypted values
+helmfile.yaml
+secrets/
+.sops.yaml

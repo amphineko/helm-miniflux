@@ -36,11 +36,6 @@ miniflux:
       allowCredentials: false
       maxAge: 0
       addVaryHeader: true
-    httpRedirect:
-      enabled: false
-      middlewareName: https-redirect
-      permanent: true
-
   anubis:
     enabled: false
     image:
@@ -57,6 +52,7 @@ miniflux:
     config:
       difficulty: 3
       ed25519_private_key_hex: ""
+      use_remote_address: false
       webmaster_email: ""
 
   config:
@@ -89,13 +85,16 @@ postgres:
     storageClass: ""
 
   database: "miniflux"
-  password: "miniflux"
+  password: null
   user: "miniflux"
 
 weweRss:
   enabled: false
 
-  authCode: ""
+  authCode: null
+
+  database:
+    password: null
 
   app:
     image:
@@ -114,3 +113,18 @@ weweRss:
 
 global:
   appName: miniflux
+
+gateway:
+  enabled: false
+  # The consuming cluster supplies the Gateway and listener when enabled.
+  name: ""
+  namespace: ""
+  sectionName: ""
+  hostname: ""
+  cors:
+    enabled: false
+    allowOrigins: []
+    allowMethods: []
+    allowHeaders: []
+    allowCredentials: false
+    maxAge: 0

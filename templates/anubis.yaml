@@ -1,5 +1,5 @@
+{{- if .Values.miniflux.anubis.enabled }}
 ---
-# {{- if .Values.miniflux.anubis.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,4 +11,4 @@ data:
       - name: miniflux-api
         path_regex: ^/v1/.*$
         action: ALLOW
-# {{- end }}
+{{- end }}

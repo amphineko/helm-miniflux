@@ -18,6 +18,8 @@ spec:
       app.kubernetes.io/component: wewe-rss
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels:
         {{ include "miniflux.labels" . | nindent 8 }}
         app.kubernetes.io/component: wewe-rss
@@ -42,10 +44,16 @@ spec:
             runAsUser: 1000
           env:
             - name: DATABASE_URL
-              value: "mysql://wewe-rss:wewe-rss@mariadb-wewerss:3306/wewe-rss?schema=public&connect_timeout=30&pool_timeout=30&socket_timeout=30"
+              valueFrom:
+                secretKeyRef:
+                  name: wewe-rss-credentials
+                  key: database-url
             {{- if .Values.weweRss.authCode }}
             - name: AUTH_CODE
-              value: "{{ .Values.weweRss.authCode }}"
+              valueFrom:
+                secretKeyRef:
+                  name: wewe-rss-credentials
+                  key: auth-code
             {{- end }}
           ports:
             - containerPort: 4000
@@ -69,17 +77,6 @@ spec:
   selector:
     {{ include "miniflux.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: wewe-rss
-
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mariadb-wewerss
-  labels:
-    {{ include "miniflux.labels" . | nindent 4 }}
-    app.kubernetes.io/component: mariadb
-stringData:
-  password: "wewe-rss"
 
 ---
 apiVersion: k8s.mariadb.com/v1alpha1
@@ -120,7 +117,7 @@ spec:
     storageClassName: "{{ .Values.weweRss.mariadbOperator.persistence.storageClass }}"
   username: "wewe-rss"
   passwordSecretKeyRef:
-    name: mariadb-wewerss
+    name: mariadb-wewerss-password
     key: password
 
 ---
@@ -137,7 +134,7 @@ spec:
   database: "wewe-rss"
   username: "wewe-rss"
   passwordSecretKeyRef:
-    name: mariadb-wewerss
+    name: mariadb-wewerss-password
     key: password
 
 {{- end }}
