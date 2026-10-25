@@ -1,0 +1,14 @@
+{{- if .Values.miniflux.anubis.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: miniflux-anubis-policy
+data:
+  policy.yaml: |+
+    bots:
+      - import: (data)/meta/default-config.yaml
+      - name: miniflux-api
+        path_regex: ^/v1/.*$
+        action: ALLOW
+{{- end }}

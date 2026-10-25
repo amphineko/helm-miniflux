@@ -1,7 +1,7 @@
 miniflux:
   image:
     repository: docker.io/miniflux/miniflux
-    tag: "2.2.12"
+    tag: "2.3.3@sha256:49d7b60987616387c306a8023087b31f2c9b7b21288b523026cb04058e8b6dbb"
     pullPolicy: "IfNotPresent"
 
   resources:
@@ -26,12 +26,21 @@ miniflux:
       # - secretName: ""
       #   hosts:
       #     - "miniflux.example.com"
-
+    useDefaultTLSStore: false
+    cors:
+      enabled: false
+      middlewareName: cors
+      allowOrigins: []
+      allowMethods: []
+      allowHeaders: []
+      allowCredentials: false
+      maxAge: 0
+      addVaryHeader: true
   anubis:
     enabled: false
     image:
       repository: ghcr.io/techarohq/anubis
-      tag: "v1.21.3"
+      tag: "v1.23.1"
       pullPolicy: "IfNotPresent"
     resources:
       requests:
@@ -43,6 +52,7 @@ miniflux:
     config:
       difficulty: 3
       ed25519_private_key_hex: ""
+      use_remote_address: false
       webmaster_email: ""
 
   config:
@@ -75,8 +85,46 @@ postgres:
     storageClass: ""
 
   database: "miniflux"
-  password: "miniflux"
+  password: null
   user: "miniflux"
+
+weweRss:
+  enabled: false
+
+  authCode: null
+
+  database:
+    password: null
+
+  app:
+    image:
+      repository: docker.io/cooderl/wewe-rss
+      tag: "v2.6.1"
+      pullPolicy: "IfNotPresent"
+
+  mariadbOperator:
+    persistence:
+      size: "10Gi"
+      storageClass: ""
+
+  service:
+    type: "ClusterIP"
+    port: 4000
 
 global:
   appName: miniflux
+
+gateway:
+  enabled: false
+  # The consuming cluster supplies the Gateway and listener when enabled.
+  name: ""
+  namespace: ""
+  sectionName: ""
+  hostname: ""
+  cors:
+    enabled: false
+    allowOrigins: []
+    allowMethods: []
+    allowHeaders: []
+    allowCredentials: false
+    maxAge: 0

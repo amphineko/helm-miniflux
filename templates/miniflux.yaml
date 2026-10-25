@@ -10,30 +10,61 @@ spec:
   replicas: 1
   selector:
     matchLabels:
+      {{- include "miniflux.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: miniflux
   strategy:
     type: Recreate
   template:
     metadata:
+      annotations:
+        checksum/secrets: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
       labels: 
         {{- include "miniflux.labels" . | nindent 8 }}
         app.kubernetes.io/component: miniflux
     spec:
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
       initContainers:
         - name: wait-for-postgres
           image: busybox:1.34.1
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           command: ['sh', '-c', 'until nc -z -v -w30 postgres 5432; do echo "Waiting for database connection..."; sleep 5; done;']
       containers:
         - name: miniflux
           image: "{{ .Values.miniflux.image.repository }}:{{ .Values.miniflux.image.tag }}"
           imagePullPolicy: "{{ .Values.miniflux.image.pullPolicy }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             - name: DATABASE_URL
-              value: "postgres://{{ .Values.postgres.user }}:{{ .Values.postgres.password }}@postgres:5432/{{ .Values.postgres.database }}?sslmode=disable"
+              valueFrom:
+                secretKeyRef:
+                  name: miniflux-credentials
+                  key: database-url
             {{- if .Values.miniflux.config.admin_password }}
             - name: ADMIN_PASSWORD
-              value: "{{ .Values.miniflux.config.admin_password }}"
+              valueFrom:
+                secretKeyRef:
+                  name: miniflux-credentials
+                  key: admin-password
             {{- end }}
             {{- if .Values.miniflux.config.admin_username }}
             - name: ADMIN_USERNAME
@@ -74,16 +105,33 @@ spec:
         - name: anubis
           image: "{{ .Values.miniflux.anubis.image.repository }}:{{ .Values.miniflux.anubis.image.tag }}"
           imagePullPolicy: "{{ .Values.miniflux.anubis.image.pullPolicy }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 1000
           env:
             - name: BIND
               value: ":8923"
             - name: DIFFICULTY
               value: "{{ .Values.miniflux.anubis.config.difficulty }}"
+            - name: POLICY_FNAME
+              value: "/etc/anubis/policy.yaml"
             - name: TARGET
               value: "http://localhost:8080"
+            {{- if .Values.miniflux.anubis.config.use_remote_address }}
+            - name: USE_REMOTE_ADDRESS
+              value: "true"
+            {{- end }}
             {{- if .Values.miniflux.anubis.config.ed25519_private_key_hex }}
             - name: ED25519_PRIVATE_KEY_HEX
-              value: "{{ .Values.miniflux.anubis.config.ed25519_private_key_hex }}"
+              valueFrom:
+                secretKeyRef:
+                  name: miniflux-anubis
+                  key: ED25519_PRIVATE_KEY_HEX
             {{- end }}
             {{- if .Values.miniflux.anubis.config.webmaster_email }}
             - name: WEBMASTER_EMAIL
@@ -100,8 +148,18 @@ spec:
             requests:
               memory: "{{ .Values.miniflux.anubis.resources.requests.memory }}"
               cpu: "{{ .Values.miniflux.anubis.resources.requests.cpu }}"
+          volumeMounts:
+            - name: anubis-policy
+              mountPath: /etc/anubis/policy.yaml
+              subPath: policy.yaml
         {{- end }}
       restartPolicy: Always
+      volumes:
+        {{- if .Values.miniflux.anubis.enabled }}
+        - name: anubis-policy
+          configMap:
+            name: miniflux-anubis-policy
+        {{- end }}
 
 ---
 apiVersion: v1
@@ -128,7 +186,7 @@ spec:
     app.kubernetes.io/instance: "{{ .Release.Name }}"
 
 ---
-{{- if .Values.miniflux.ingress.enabled -}}
+{{ if .Values.miniflux.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -157,6 +215,7 @@ spec:
                   port:
                     name: http
     {{- end }}
+  {{- if not (and (eq .Values.miniflux.ingress.className "traefik") .Values.miniflux.ingress.useDefaultTLSStore) }}
   {{- if .Values.miniflux.ingress.tls }}
   tls:
     {{- range .Values.miniflux.ingress.tls }}
@@ -166,5 +225,6 @@ spec:
         {{- end }}
       secretName: {{ .secretName }}
     {{- end }}
+  {{- end }}
   {{- end }}
 {{- end }}
