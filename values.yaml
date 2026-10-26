@@ -120,7 +120,11 @@ gateway:
   name: ""
   namespace: ""
   sectionName: ""
+  # Set this to attach the Route to more than one listener. When empty, the
+  # legacy name/namespace/sectionName fields above are used.
+  parentRefs: []
   hostname: ""
+  filters: []
   cors:
     enabled: false
     allowOrigins: []
