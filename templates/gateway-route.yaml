@@ -8,9 +8,13 @@ metadata:
     app.kubernetes.io/component: miniflux
 spec:
   parentRefs:
+    {{- if .Values.gateway.parentRefs }}
+    {{- toYaml .Values.gateway.parentRefs | nindent 4 }}
+    {{- else }}
     - name: {{ required "gateway.name is required when Gateway is enabled" .Values.gateway.name }}
       namespace: {{ required "gateway.namespace is required when Gateway is enabled" .Values.gateway.namespace }}
       sectionName: {{ required "gateway.sectionName is required when Gateway is enabled" .Values.gateway.sectionName }}
+    {{- end }}
   hostnames:
     - {{ required "gateway.hostname is required" .Values.gateway.hostname | quote }}
   rules:
@@ -18,8 +22,12 @@ spec:
         - path:
             type: PathPrefix
             value: /
-      {{- if .Values.gateway.cors.enabled }}
+      {{- if or .Values.gateway.filters .Values.gateway.cors.enabled }}
       filters:
+        {{- with .Values.gateway.filters }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.gateway.cors.enabled }}
         - type: CORS
           cors:
             allowOrigins:
@@ -30,6 +38,7 @@ spec:
               {{- toYaml .Values.gateway.cors.allowHeaders | nindent 14 }}
             allowCredentials: {{ .Values.gateway.cors.allowCredentials }}
             maxAge: {{ int .Values.gateway.cors.maxAge }}
+        {{- end }}
       {{- end }}
       backendRefs:
         - name: miniflux
